@@ -71,7 +71,7 @@ def main():
 
     # Conectar a la base de datos MySQL en la instancia de EC2
     connection = pymysql.connect(
-        host='54.162.192.7',  
+        host='52.201.84.225',  
         user='root',          
         password='strong_password',     
         database='bigdata'      
