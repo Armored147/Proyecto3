@@ -1,5 +1,6 @@
 import time
 from google.cloud import dataproc_v1, storage
+import subprocess
 
 # Configura tus credenciales y parámetros de proyecto
 PROJECT_ID = "bigdata-442414"
@@ -103,6 +104,7 @@ def upload_etl_script_to_gcs(bucket_name, script_path, destination_blob_name):
     blob.upload_from_filename(script_path)
     print(f"Script {script_path} subido exitosamente a {destination_blob_name}.")
 
+
 if __name__ == "__main__":
     # Inicializa el cliente de Dataproc
     dataproc_client = dataproc_v1.ClusterControllerClient(client_options={"api_endpoint": f"{REGION}-dataproc.googleapis.com:443"})
@@ -111,23 +113,33 @@ if __name__ == "__main__":
     try:
         # Ruta al script ETL local
         LOCAL_ETL_SCRIPT = "etl_script.py"
+        LOCAL_ANALYSIS_SCRIPT = "data_analysis.py"
 
         # Verificar o crear el bucket y la carpeta "trusted"
         create_bucket_and_folder(BUCKET_NAME, "trusted")
-        
-        # Subir script ETL a GCS
+
+        # Subir script ETL y análisis a GCS
         upload_etl_script_to_gcs(BUCKET_NAME, LOCAL_ETL_SCRIPT, "etl_script.py")
+        upload_etl_script_to_gcs(BUCKET_NAME, LOCAL_ANALYSIS_SCRIPT, "data_analysis.py")
 
         # Crear el clúster
         create_cluster(dataproc_client, PROJECT_ID, REGION, CLUSTER_NAME)
 
-        # Enviar el trabajo PySpark al clúster
+        # Enviar el trabajo PySpark (ETL) al clúster
         submit_pyspark_job(job_client, PROJECT_ID, REGION, CLUSTER_NAME, GCS_ETL_SCRIPT)
-    
+
+        # Verificar o crear la carpeta "refined"
+        create_bucket_and_folder(BUCKET_NAME, "refined")
+
+        # Enviar el trabajo PySpark (análisis) al clúster
+        GCS_ANALYSIS_SCRIPT = f"gs://{BUCKET_NAME}/data_analysis.py"
+        submit_pyspark_job(job_client, PROJECT_ID, REGION, CLUSTER_NAME, GCS_ANALYSIS_SCRIPT)
+
     except Exception as e:
         print(f"Error durante el proceso: {e}")
-    
+
     finally:
         # Eliminar el clúster
         delete_cluster(dataproc_client, PROJECT_ID, REGION, CLUSTER_NAME)
+
 
